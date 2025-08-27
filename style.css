@@ -1,0 +1,368 @@
+/* style.css */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #e2e8f0;
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.vpn-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.logo-img {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(66, 153, 225, 0.3);
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4299e1;
+    text-shadow: 0 2px 10px rgba(66, 153, 225, 0.3);
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    color: #cbd5e0;
+    font-weight: 600;
+}
+
+/* Кнопки */
+.primary-btn, .secondary-btn, .retry-btn {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    display: block;
+}
+
+.primary-btn:hover, .secondary-btn:hover, .retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(66, 153, 225, 0.4);
+}
+
+.secondary-btn {
+    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    box-shadow: 0 4px 15px rgba(56, 161, 105, 0.3);
+}
+
+.secondary-btn:hover {
+    box-shadow: 0 6px 25px rgba(56, 161, 105, 0.4);
+}
+
+/* Секции */
+.speed-test-section, .services-section {
+    background: rgba(45, 55, 72, 0.6);
+    padding: 30px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Результаты скорости */
+.speed-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.speed-metric {
+    background: rgba(26, 32, 44, 0.8);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid rgba(66, 153, 225, 0.2);
+}
+
+.metric-label {
+    display: block;
+    font-size: 0.9rem;
+    color: #a0aec0;
+    margin-bottom: 8px;
+}
+
+.metric-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #4299e1;
+}
+
+/* Прогресс бар */
+.progress-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.progress-label {
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: #cbd5e0;
+}
+
+.progress-bar {
+    background: rgba(26, 32, 44, 0.8);
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22543d, #38a169, #48bb78);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.progress-text {
+    font-size: 1rem;
+    color: #38a169;
+    font-weight: 600;
+}
+
+/* Сервисы */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.service-card {
+    background: rgba(26, 32, 44, 0.8);
+    padding: 25px;
+    border-radius: 16px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-2px);
+}
+
+.service-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.service-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #e2e8f0;
+}
+
+.service-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #718096;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.ok {
+    background: #38a169;
+    animation: none;
+}
+
+.status-indicator.error {
+    background: #e53e3e;
+    animation: none;
+}
+
+.status-indicator.slow {
+    background: #dd6b20;
+    animation: none;
+}
+
+.status-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Страница ошибки */
+.error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.error-content {
+    text-align: center;
+    max-width: 600px;
+    padding: 40px;
+    background: rgba(45, 55, 72, 0.8);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.error-message {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    color: #cbd5e0;
+}
+
+.instructions {
+    text-align: left;
+    margin: 30px 0;
+}
+
+.device-instructions {
+    display: grid;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.device-card {
+    background: rgba(26, 32, 44, 0.6);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.device-card h3 {
+    color: #4299e1;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.device-card ol {
+    padding-left: 20px;
+}
+
+.device-card li {
+    margin-bottom: 8px;
+    color: #cbd5e0;
+}
+
+/* Утилиты */
+.hidden {
+    display: none !important;
+}
+
+/* Анимации */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    .speed-test-section, .services-section {
+        padding: 20px;
+    }
+    
+    .vpn-logo {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .services-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .service-card {
+        padding: 20px 15px;
+    }
+    
+    .device-instructions {
+        grid-template-columns: 1fr;
+    }
+    
+    .primary-btn, .secondary-btn, .retry-btn {
+        padding: 18px 24px;
+        font-size: 1.2rem;
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .speed-results {
+        grid-template-columns: 1fr;
+    }
+    
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metric-value {
+        font-size: 1.3rem;
+    }
+    
+    .service-icon {
+        font-size: 2rem;
+    }
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #718096;
+    font-size: 0.9rem;
+}

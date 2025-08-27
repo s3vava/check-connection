@@ -1,1 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPN Диагностика</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="vpn-logo">
+                <img src="https://i.ibb.co/C3mxX4WT/Chat-GPT-Image-22-2025-14-46-57-removebg-preview-1-1.png" alt="VPN Logo" class="logo-img">
+                <h1>VPN Диагностика</h1>
+            </div>
+        </header>
 
+        <main>
+            <!-- Проверка скорости -->
+            <section class="speed-test-section">
+                <h2>Тест скорости интернета</h2>
+                <div class="speed-controls">
+                    <button id="start-speed-test" class="primary-btn">
+                        🚀 Запустить тест скорости
+                    </button>
+                </div>
+                
+                <div id="speed-results" class="speed-results hidden">
+                    <div class="speed-metric">
+                        <span class="metric-label">Загрузка:</span>
+                        <span id="download-speed" class="metric-value">-- Mbps</span>
+                    </div>
+                    <div class="speed-metric">
+                        <span class="metric-label">Выгрузка:</span>
+                        <span id="upload-speed" class="metric-value">-- Mbps</span>
+                    </div>
+                    <div class="speed-metric">
+                        <span class="metric-label">Пинг:</span>
+                        <span id="ping-result" class="metric-value">-- ms</span>
+                    </div>
+                </div>
+
+                <div id="speed-progress" class="progress-container hidden">
+                    <div class="progress-label">Выполнение теста...</div>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <div id="progress-text" class="progress-text">0%</div>
+                </div>
+            </section>
+
+            <!-- Проверка доступности сервисов -->
+            <section class="services-section">
+                <h2>Доступность сервисов</h2>
+                <div class="services-grid">
+                    <div class="service-card" data-service="youtube">
+                        <div class="service-icon">📺</div>
+                        <div class="service-name">YouTube</div>
+                        <div class="service-status" id="youtube-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-text">Проверка...</span>
+                        </div>
+                    </div>
+
+                    <div class="service-card" data-service="telegram">
+                        <div class="service-icon">✈️</div>
+                        <div class="service-name">Telegram</div>
+                        <div class="service-status" id="telegram-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-text">Проверка...</span>
+                        </div>
+                    </div>
+
+                    <div class="service-card" data-service="whatsapp">
+                        <div class="service-icon">💬</div>
+                        <div class="service-name">WhatsApp</div>
+                        <div class="service-status" id="whatsapp-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-text">Проверка...</span>
+                        </div>
+                    </div>
+
+                    <div class="service-card" data-service="instagram">
+                        <div class="service-icon">📸</div>
+                        <div class="service-name">Instagram</div>
+                        <div class="service-status" id="instagram-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-text">Проверка...</span>
+                        </div>
+                    </div>
+
+                    <div class="service-card" data-service="chatgpt">
+                        <div class="service-icon">🤖</div>
+                        <div class="service-name">ChatGPT</div>
+                        <div class="service-status" id="chatgpt-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-text">Проверка...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="check-services" class="secondary-btn">
+                    🔍 Проверить сервисы
+                </button>
+            </section>
+
+            <!-- Скрытый iframe для YouTube -->
+            <iframe id="youtube-test" src="https://www.youtube.com/embed/KQWNChU-Bqc?autoplay=1&mute=1" 
+                    style="display: none;" onload="handleYouTubeLoad()"></iframe>
+        </main>
+
+        <footer>
+            <p>© 2025 VPN Диагностика</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

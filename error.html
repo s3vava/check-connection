@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPN не подключен</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="error-page">
+    <div class="container">
+        <div class="error-content">
+            <div class="vpn-logo">
+                <img src="https://via.placeholder.com/100x100/2d3748/4299e1?text=VPN" alt="VPN Logo" class="logo-img">
+            </div>
+            
+            <h1>Вы не подключены к ВПН</h1>
+            <p class="error-message">
+                Подключитесь и обновите страницу для запуска диагностики
+            </p>
+
+            <div class="instructions">
+                <h2>Инструкции по подключению:</h2>
+                
+                <div class="device-instructions">
+                    <div class="device-card">
+                        <h3>📱 iPhone</h3>
+                        <ol>
+                            <li>Скачайте приложение V2BOX из App Store</li>
+                            <li>Откройте приложение и настройте подключение</li>
+                            <li>Нажмите кнопку подключения</li>
+                            <li>Обновите эту страницу</li>
+                        </ol>
+                    </div>
+
+                    <div class="device-card">
+                        <h3>🤖 Android</h3>
+                        <ol>
+                            <li>Установите приложение V2BOX</li>
+                            <li>Импортируйте конфигурацию VPN</li>
+                            <li>Активируйте VPN соединение</li>
+                            <li>Обновите эту страницу</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <button class="retry-btn" onclick="window.location.reload()">
+                🔄 Обновить страницу
+            </button>
+        </div>
+    </div>
+</body>
+</html>
