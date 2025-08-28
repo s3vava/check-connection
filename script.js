@@ -100,10 +100,10 @@ class VPNDiagnostics {
     // Точный тест пинга - несколько измерений к разным серверам
     async testPing() {
         const testServers = [
-            'https://www.google.com/generate_204',
+            //'https://www.google.com/generate_204',
             'https://www.cloudflare.com/cdn-cgi/trace',
-            'https://httpbin.org/status/204',
-            'https://www.gstatic.com/generate_204'
+            //'https://httpbin.org/status/204',
+            //'https://www.gstatic.com/generate_204'
         ];
 
         let totalPing = 0;
@@ -240,10 +240,10 @@ class VPNDiagnostics {
         try {
             // Используем Cloudflare и другие CDN
             const testUrls = [
-                'https://cachefly.cachefly.net/10mb.test', // 10MB CacheFly
-                'https://speed.cloudflare.com/__down?bytes=10000000', // 10MB Cloudflare
-                'https://via.placeholder.com/2048x2048.jpg', // ~400KB изображение
-                'https://picsum.photos/2048/2048.jpg' // ~300KB случайное изображение
+                //'https://cachefly.cachefly.net/10mb.test', // 10MB CacheFly
+                'https://speed.cloudflare.com/__down?bytes=50000000', // 50MB Cloudflare
+                //'https://via.placeholder.com/2048x2048.jpg', // ~400KB изображение
+                //'https://picsum.photos/2048/2048.jpg' // ~300KB случайное изображение
             ];
             
             let totalSpeed = 0;
