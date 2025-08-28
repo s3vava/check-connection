@@ -302,16 +302,16 @@ class VPNDiagnostics {
     async testUploadSpeed() {
         // Используем надежные сервисы для upload тестов
         const uploadServices = [
-            //{ 
-              //  url: 'https://httpbin.org/post', 
-                //name: 'HTTPBin',
-                //sizes: [1024 * 1024, 50 * 1024 * 1024] // 1MB, 50MB
-            //},
             { 
-                url: 'https://ptsv2.com/t/vpn-test/post', 
-                name: 'PostTestServer',
-                sizes: [20 * 1024 * 1024] // 20MB
+                url: 'https://httpbin.org/post', 
+                name: 'HTTPBin',
+                sizes: [30 * 1024 * 1024] // 1MB, 50MB
             }
+            //{ 
+                //url: 'https://ptsv2.com/t/vpn-test/post', 
+               // name: 'PostTestServer',
+              //  sizes: [20 * 1024 * 1024] // 20MB
+            //}
             //{ 
                // url: 'https://httpbun.org/post', 
                // name: 'HTTPBun',
