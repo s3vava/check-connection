@@ -26,11 +26,11 @@ export default async (request, context) => {
 
   // ВРЕМЕННО: Пропускаем всех для тестирования
   // Закомментируйте эти 3 строки когда убедитесь что сайт работает
-  console.log(`TESTING MODE: Allowing all IPs`);
-  return context.next();
+  //console.log(`TESTING MODE: Allowing all IPs`);
+  //return context.next();
 
-  // Основная логика проверки IP (раскомментируйте когда тестирование завершено)
-  /*
+   //Основная логика проверки IP (раскомментируйте когда тестирование завершено)
+  
   if (!allowedIPs.includes(clientIP)) {
     console.log(`IP ${clientIP} not in allowlist. Showing error page.`);
     
@@ -47,7 +47,7 @@ export default async (request, context) => {
     <div class="container">
         <div class="error-content">
             <div class="vpn-logo">
-                <img src="https://via.placeholder.com/100x100/2d3748/4299e1?text=VPN" alt="VPN Logo" class="logo-img">
+                <img src="https://i.ibb.co/9HSvmtq8/image.png?text=VPN" alt="VPN Logo" class="logo-img">
             </div>
             
             <h1>Вы не подключены к ВПН</h1>
@@ -90,13 +90,13 @@ export default async (request, context) => {
 </html>`;
     
     return new Response(errorHtml, {
-      status = 200,
+      status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8'
       }
     });
   }
-  */
+  
 
   // IP разрешен, продолжаем обработку
   console.log(`IP ${clientIP} allowed. Continuing to main page.`);
