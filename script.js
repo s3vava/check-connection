@@ -305,18 +305,18 @@ class VPNDiagnostics {
             { 
                 url: 'https://httpbin.org/post', 
                 name: 'HTTPBin',
-                sizes: [1024 * 1024, 5 * 1024 * 1024] // 1MB, 5MB
+                sizes: [1024 * 1024, 50 * 1024 * 1024] // 1MB, 50MB
             },
             { 
                 url: 'https://ptsv2.com/t/vpn-test/post', 
                 name: 'PostTestServer',
-                sizes: [1024 * 1024] // 1MB
+                sizes: [20 * 1024 * 1024] // 20MB
             },
-            { 
-                url: 'https://httpbun.org/post', 
-                name: 'HTTPBun',
-                sizes: [512 * 1024, 1024 * 1024] // 512KB, 1MB
-            }
+            //{ 
+               // url: 'https://httpbun.org/post', 
+               // name: 'HTTPBun',
+               // sizes: [512 * 1024, 1024 * 1024] // 512KB, 1MB
+            //}
         ];
 
         let totalSpeed = 0;
