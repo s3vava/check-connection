@@ -140,13 +140,20 @@ class VPNDiagnostics {
         return Math.round(totalPing / successCount);
     }
 
-    // Реальный тест скорости загрузки с большими файлами
+    // Реальный тест скорости загрузки с альтернативными сервисами
     async testDownloadSpeed() {
-        // Используем тестовые файлы размером до 100MB
+        // Используем разные сервисы для тестовых файлов
         const testFiles = [
-            { url: 'https://httpbin.org/bytes/10485760', size: 10, name: '10MB' },   // 10MB
-            { url: 'https://httpbin.org/bytes/52428800', size: 50, name: '50MB' },   // 50MB  
-            { url: 'https://httpbin.org/bytes/104857600', size: 100, name: '100MB' } // 100MB
+            // Hetzner - отличные тестовые файлы
+            //{ url: 'https://ash-speed.hetzner.com/100MB.bin', size: 100, name: '100MB (Hetzner)' },
+            { url: 'https://fsn1-speed.hetzner.com/100MB.bin', size: 100, name: '100MB (Hetzner EU)' },
+            
+            // Альтернативные сервисы
+            //{ url: 'https://proof.ovh.net/files/100Mb.dat', size: 100, name: '100MB (OVH)' },
+            //{ url: 'https://lg.newark.linode.com/100MB-newark.bin', size: 100, name: '100MB (Linode)' },
+            
+            // Fallback на меньшие размеры
+            //{ url: 'https://ash-speed.hetzner.com/10MB.bin', size: 10, name: '10MB (Hetzner)' }
         ];
 
         let totalSpeed = 0;
@@ -156,7 +163,7 @@ class VPNDiagnostics {
         for (let testFile of testFiles) {
             currentTest++;
             try {
-                this.updateProgress(25 + (currentTest * 15), `Загрузка ${testFile.name}...`);
+                this.updateProgress(25 + (currentTest * 10), `Загрузка ${testFile.name}...`);
                 
                 const startTime = performance.now();
                 
@@ -165,14 +172,14 @@ class VPNDiagnostics {
                         cache: 'no-cache',
                         method: 'GET'
                     }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 30000)) // 30 сек таймаут
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 30000)) // 30 сек
                 ]);
 
                 if (response.ok) {
                     // Читаем данные чанками для точного измерения
                     const reader = response.body.getReader();
                     let receivedLength = 0;
-                    let chunks = [];
+                    const chunks = [];
 
                     while (true) {
                         const { done, value } = await reader.read();
@@ -182,7 +189,8 @@ class VPNDiagnostics {
                         receivedLength += value.length;
                         
                         // Обновляем прогресс во время загрузки
-                        const currentProgress = 25 + ((currentTest - 1) * 15) + (receivedLength / testFile.size / 1024 / 1024) * 15;
+                        const downloadProgress = (receivedLength / (testFile.size * 1024 * 1024)) * 10;
+                        const currentProgress = 25 + ((currentTest - 1) * 10) + downloadProgress;
                         this.updateProgress(Math.min(currentProgress, 70), `Загружено ${Math.round(receivedLength / 1024 / 1024)}MB из ${testFile.name}`);
                     }
 
@@ -193,12 +201,13 @@ class VPNDiagnostics {
                     
                     console.log(`Download test ${testFile.name}: ${sizeInMB.toFixed(1)}MB in ${duration.toFixed(1)}s = ${speedMbps.toFixed(1)} Mbps`);
                     
-                    if (speedMbps > 0 && speedMbps < 1000) { // Исключаем аномальные значения
+                    if (speedMbps > 0.1 && speedMbps < 2000) { // Реалистичные границы
                         totalSpeed += speedMbps;
                         testCount++;
                         
-                        // Для больших файлов можем остановиться после успешного теста
-                        if (testFile.size >= 50 && testCount >= 1) {
+                        // После успешного 100MB теста можем остановиться
+                        if (testFile.size >= 100 && testCount >= 1) {
+                            console.log('Successful large file test, stopping early');
                             break;
                         }
                     }
@@ -207,45 +216,49 @@ class VPNDiagnostics {
             } catch (error) {
                 console.log(`Download test failed for ${testFile.name}:`, error.message);
                 
-                // Если большие файлы не загружаются, используем fallback
-                if (error.message === 'timeout' && testFile.size >= 50) {
-                    console.log('Large file timeout, using fallback test');
+                // Если первые несколько тестов провалились, переходим к fallback
+                if (currentTest >= 3 && testCount === 0) {
+                    console.log('Multiple failures, using fallback test');
                     return await this.fallbackDownloadTest();
                 }
             }
         }
 
         if (testCount === 0) {
-            // Fallback: тест с изображениями
             console.log('All download tests failed, using fallback');
             return await this.fallbackDownloadTest();
         }
 
         const averageSpeed = totalSpeed / testCount;
-        console.log(`Average download speed: ${averageSpeed.toFixed(1)} Mbps`);
+        console.log(`Average download speed: ${averageSpeed.toFixed(1)} Mbps from ${testCount} tests`);
         
-        return Math.round(averageSpeed * 10) / 10; // Округляем до 1 знака
+        return Math.round(averageSpeed * 10) / 10;
     }
 
-    // Запасной тест загрузки с несколькими файлами
+    // Запасной тест загрузки
     async fallbackDownloadTest() {
         try {
-            const testImages = [
-                'https://via.placeholder.com/2048x2048.jpg', // ~400KB
-                'https://picsum.photos/2048/2048.jpg',       // ~300KB  
-                'https://httpbin.org/image/jpeg'             // ~35KB
+            // Используем Cloudflare и другие CDN
+            const testUrls = [
+                'https://cachefly.cachefly.net/10mb.test', // 10MB CacheFly
+                'https://speed.cloudflare.com/__down?bytes=10000000', // 10MB Cloudflare
+                'https://via.placeholder.com/2048x2048.jpg', // ~400KB изображение
+                'https://picsum.photos/2048/2048.jpg' // ~300KB случайное изображение
             ];
             
             let totalSpeed = 0;
             let testCount = 0;
             
-            for (let i = 0; i < testImages.length; i++) {
-                for (let iteration = 0; iteration < 3; iteration++) { // 3 итерации для каждого
+            for (let url of testUrls) {
+                for (let iteration = 0; iteration < 2; iteration++) {
                     try {
                         const startTime = performance.now();
-                        const response = await fetch(`${testImages[i]}?t=${Date.now()}&i=${iteration}`, { 
-                            cache: 'no-cache' 
-                        });
+                        const response = await Promise.race([
+                            fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}&i=${iteration}`, { 
+                                cache: 'no-cache' 
+                            }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+                        ]);
                         
                         if (response.ok) {
                             const data = await response.blob();
@@ -255,95 +268,112 @@ class VPNDiagnostics {
                             const sizeInMB = data.size / (1024 * 1024);
                             const speedMbps = (sizeInMB * 8) / duration;
                             
-                            if (speedMbps > 0 && speedMbps < 500) {
+                            if (speedMbps > 0.1 && speedMbps < 500) {
                                 totalSpeed += speedMbps;
                                 testCount++;
+                                console.log(`Fallback test: ${sizeInMB.toFixed(2)}MB in ${duration.toFixed(1)}s = ${speedMbps.toFixed(1)} Mbps`);
                             }
                         }
                         
-                        // Небольшая пауза между запросами
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        // Пауза между запросами
+                        await new Promise(resolve => setTimeout(resolve, 200));
                         
                     } catch (error) {
-                        console.log(`Fallback test iteration failed:`, error);
+                        console.log(`Fallback test failed for ${url}:`, error.message);
                     }
                 }
             }
             
             if (testCount > 0) {
-                return Math.round((totalSpeed / testCount) * 10) / 10;
+                const avgSpeed = totalSpeed / testCount;
+                console.log(`Fallback average: ${avgSpeed.toFixed(1)} Mbps from ${testCount} tests`);
+                return Math.round(avgSpeed * 10) / 10;
             }
             
-            return 5.0; // Базовая скорость если все тесты провалились
+            return 5.0; // Базовая скорость
             
         } catch (error) {
             console.log('Fallback download test failed:', error);
-            return 1.0; // Минимальная скорость
+            return 2.0; // Минимальная скорость
         }
     }
 
-    // Реальный тест скорости выгрузки с большими данными
+    // Тест скорости выгрузки с альтернативными сервисами
     async testUploadSpeed() {
-        // Создаем тестовые данные большего размера
-        const testSizes = [
-            { size: 1024 * 1024, name: '1MB' },      // 1MB
-            { size: 5 * 1024 * 1024, name: '5MB' },  // 5MB  
-            { size: 10 * 1024 * 1024, name: '10MB' } // 10MB
+        // Используем надежные сервисы для upload тестов
+        const uploadServices = [
+            { 
+                url: 'https://httpbin.org/post', 
+                name: 'HTTPBin',
+                sizes: [1024 * 1024, 5 * 1024 * 1024] // 1MB, 5MB
+            },
+            { 
+                url: 'https://ptsv2.com/t/vpn-test/post', 
+                name: 'PostTestServer',
+                sizes: [1024 * 1024] // 1MB
+            },
+            { 
+                url: 'https://httpbun.org/post', 
+                name: 'HTTPBun',
+                sizes: [512 * 1024, 1024 * 1024] // 512KB, 1MB
+            }
         ];
 
         let totalSpeed = 0;
         let testCount = 0;
         let currentTest = 0;
 
-        for (let test of testSizes) {
-            currentTest++;
-            try {
-                this.updateProgress(70 + (currentTest * 7), `Выгрузка ${test.name}...`);
+        for (let service of uploadServices) {
+            for (let size of service.sizes) {
+                currentTest++;
+                const sizeLabel = size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(0)}MB` : `${(size / 1024).toFixed(0)}KB`;
                 
-                const testData = this.generateBinaryTestData(test.size);
-                const startTime = performance.now();
-                
-                // Используем httpbin для POST тестов с увеличенным таймаутом
-                const response = await Promise.race([
-                    fetch('https://httpbin.org/post', {
-                        method: 'POST',
-                        body: testData,
-                        headers: {
-                            'Content-Type': 'application/octet-stream',
-                            'Content-Length': test.size.toString()
-                        }
-                    }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)) // 20 сек для больших файлов
-                ]);
+                try {
+                    this.updateProgress(70 + (currentTest * 5), `Выгрузка ${sizeLabel} в ${service.name}...`);
+                    
+                    const testData = this.generateBinaryTestData(size);
+                    const startTime = performance.now();
+                    
+                    const response = await Promise.race([
+                        fetch(service.url, {
+                            method: 'POST',
+                            body: testData,
+                            headers: {
+                                'Content-Type': 'application/octet-stream',
+                                'Content-Length': size.toString(),
+                                'User-Agent': 'VPN-Speed-Test'
+                            }
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000))
+                    ]);
 
-                if (response.ok) {
-                    const endTime = performance.now();
-                    const duration = (endTime - startTime) / 1000;
-                    const sizeInMB = test.size / (1024 * 1024);
-                    const speedMbps = (sizeInMB * 8) / duration;
-                    
-                    console.log(`Upload test ${test.name}: ${sizeInMB.toFixed(1)}MB in ${duration.toFixed(1)}s = ${speedMbps.toFixed(1)} Mbps`);
-                    
-                    if (speedMbps > 0 && speedMbps < 1000) {
-                        totalSpeed += speedMbps;
-                        testCount++;
+                    if (response.ok || response.status === 413) { // 413 = too large, но данные отправлены
+                        const endTime = performance.now();
+                        const duration = (endTime - startTime) / 1000;
+                        const sizeInMB = size / (1024 * 1024);
+                        const speedMbps = (sizeInMB * 8) / duration;
                         
-                        // Для больших файлов можем остановиться после успешного теста
-                        if (test.size >= 5 * 1024 * 1024 && testCount >= 1) {
-                            break;
+                        console.log(`Upload test ${sizeLabel} to ${service.name}: ${sizeInMB.toFixed(2)}MB in ${duration.toFixed(1)}s = ${speedMbps.toFixed(1)} Mbps`);
+                        
+                        if (speedMbps > 0.1 && speedMbps < 1000) {
+                            totalSpeed += speedMbps;
+                            testCount++;
+                            
+                            // После успешного большого теста можем остановиться
+                            if (size >= 5 * 1024 * 1024 && testCount >= 1) {
+                                console.log('Successful large upload test, stopping early');
+                                break;
+                            }
                         }
                     }
-                }
 
-            } catch (error) {
-                console.log(`Upload test failed for ${test.name}:`, error.message);
-                
-                // Если большие файлы не отправляются, попробуем меньший размер  
-                if (error.message === 'timeout' && test.size >= 5 * 1024 * 1024) {
-                    console.log('Large upload timeout, trying smaller size');
-                    return await this.fallbackUploadTest();
+                } catch (error) {
+                    console.log(`Upload test failed for ${sizeLabel} to ${service.name}:`, error.message);
                 }
             }
+            
+            // Если уже есть успешные тесты, не тестируем все сервисы
+            if (testCount >= 2) break;
         }
 
         if (testCount === 0) {
@@ -352,31 +382,41 @@ class VPNDiagnostics {
         }
 
         const averageSpeed = totalSpeed / testCount;
-        console.log(`Average upload speed: ${averageSpeed.toFixed(1)} Mbps`);
+        console.log(`Average upload speed: ${averageSpeed.toFixed(1)} Mbps from ${testCount} tests`);
         
         return Math.round(averageSpeed * 10) / 10;
     }
 
-    // Запасной тест выгрузки с меньшими размерами
+    // Запасной тест выгрузки
     async fallbackUploadTest() {
         try {
-            const testSizes = [100 * 1024, 250 * 1024, 500 * 1024]; // 100KB, 250KB, 500KB
+            // Простые тесты с маленькими файлами
+            const fallbackServices = [
+                'https://httpbin.org/post',
+                'https://postman-echo.com/post',
+                'https://reqres.in/api/users'
+            ];
+            
+            const testSizes = [64 * 1024, 128 * 1024, 256 * 1024]; // 64KB, 128KB, 256KB
             let totalSpeed = 0;
             let testCount = 0;
 
-            for (let size of testSizes) {
-                for (let iteration = 0; iteration < 2; iteration++) {
+            for (let service of fallbackServices) {
+                for (let size of testSizes) {
                     try {
                         const testData = this.generateBinaryTestData(size);
                         const startTime = performance.now();
                         
-                        const response = await fetch('https://httpbin.org/post', {
-                            method: 'POST',
-                            body: testData,
-                            headers: {
-                                'Content-Type': 'application/octet-stream'
-                            }
-                        });
+                        const response = await Promise.race([
+                            fetch(service, {
+                                method: 'POST',
+                                body: testData,
+                                headers: {
+                                    'Content-Type': 'application/octet-stream'
+                                }
+                            }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+                        ]);
 
                         if (response.ok) {
                             const endTime = performance.now();
@@ -384,29 +424,35 @@ class VPNDiagnostics {
                             const sizeInMB = size / (1024 * 1024);
                             const speedMbps = (sizeInMB * 8) / duration;
                             
-                            if (speedMbps > 0 && speedMbps < 500) {
+                            if (speedMbps > 0.1 && speedMbps < 200) {
                                 totalSpeed += speedMbps;
                                 testCount++;
+                                console.log(`Fallback upload: ${(size/1024).toFixed(0)}KB in ${duration.toFixed(1)}s = ${speedMbps.toFixed(1)} Mbps`);
                             }
                         }
                         
-                        await new Promise(resolve => setTimeout(resolve, 200));
+                        await new Promise(resolve => setTimeout(resolve, 300));
                         
                     } catch (error) {
-                        console.log(`Fallback upload iteration failed:`, error);
+                        console.log(`Fallback upload test failed:`, error.message);
                     }
                 }
+                
+                // Если есть успешные тесты, не тестируем все сервисы
+                if (testCount >= 3) break;
             }
 
             if (testCount > 0) {
-                return Math.round((totalSpeed / testCount) * 10) / 10;
+                const avgSpeed = totalSpeed / testCount;
+                console.log(`Fallback upload average: ${avgSpeed.toFixed(1)} Mbps from ${testCount} tests`);
+                return Math.round(avgSpeed * 10) / 10;
             }
 
-            return 2.0; // Базовая скорость выгрузки
+            return 1.5; // Базовая скорость выгрузки
             
         } catch (error) {
             console.log('Fallback upload test failed:', error);
-            return 0.5; // Минимальная скорость выгрузки
+            return 0.8; // Минимальная скорость выгрузки
         }
     }
 
