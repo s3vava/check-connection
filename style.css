@@ -359,6 +359,43 @@ h2 {
     }
 }
 
+/* Дополнительные стили для результатов */
+.metric-value.excellent {
+    color: #48bb78 !important;
+}
+
+.metric-value.good {
+    color: #ed8936 !important;
+}
+
+.metric-value.slow {
+    color: #e53e3e !important;
+}
+
+.speed-results.show-partial {
+    display: grid !important;
+}
+
+.speed-results.show-partial .speed-metric:not(.loaded) {
+    opacity: 0.5;
+}
+
+.speed-metric.loaded {
+    opacity: 1;
+    animation: fadeInResult 0.5s ease;
+}
+
+@keyframes fadeInResult {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Footer */
 footer {
     text-align: center;
