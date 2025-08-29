@@ -299,93 +299,306 @@ class VPNDiagnostics {
     }
 
     // Тест скорости выгрузки с альтернативными сервисами
-    async testUploadSpeed() {
-        // Используем надежные сервисы для upload тестов
-        const uploadServices = [
-            { 
-                url: 'https://httpbin.org/post', 
-                name: 'HTTPBin',
-                sizes: [30 * 1024 * 1024] // 1MB, 50MB
-            }
-            //{ 
-                //url: 'https://ptsv2.com/t/vpn-test/post', 
-               // name: 'PostTestServer',
-              //  sizes: [20 * 1024 * 1024] // 20MB
-            //}
-            //{ 
-               // url: 'https://httpbun.org/post', 
-               // name: 'HTTPBun',
-               // sizes: [512 * 1024, 1024 * 1024] // 512KB, 1MB
-            //}
-        ];
+    // Улучшенная версия теста скорости выгрузки
+async testUploadSpeed() {
+    // Используем специализированные сервисы для тестирования скорости
+    const uploadServices = [
+        {
+            url: 'https://httpbin.org/post',
+            name: 'HTTPBin',
+            maxSize: 10 * 1024 * 1024, // 10MB максимум
+            headers: { 'Content-Type': 'application/octet-stream' }
+        },
+        {
+            url: 'https://postman-echo.com/post',
+            name: 'Postman Echo',
+            maxSize: 5 * 1024 * 1024, // 5MB максимум
+            headers: { 'Content-Type': 'application/octet-stream' }
+        },
+        {
+            url: 'https://reqres.in/api/users',
+            name: 'ReqRes',
+            maxSize: 2 * 1024 * 1024, // 2MB максимум
+            headers: { 'Content-Type': 'application/json' }
+        }
+    ];
 
-        let totalSpeed = 0;
-        let testCount = 0;
-        let currentTest = 0;
+    // Прогрессивные размеры тестов - начинаем с маленьких
+    const testSizes = [
+        64 * 1024,      // 64KB
+        256 * 1024,     // 256KB
+        1024 * 1024,    // 1MB
+        2 * 1024 * 1024, // 2MB
+        5 * 1024 * 1024, // 5MB
+    ];
 
-        for (let service of uploadServices) {
-            for (let size of service.sizes) {
-                currentTest++;
-                const sizeLabel = size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(0)}MB` : `${(size / 1024).toFixed(0)}KB`;
+    let bestResults = [];
+    let currentTest = 0;
+    const totalTests = uploadServices.length * 3; // по 3 теста на сервис
+
+    for (let service of uploadServices) {
+        console.log(`\n=== Тестирование ${service.name} ===`);
+        
+        // Для каждого сервиса проводим несколько тестов разных размеров
+        for (let testIndex = 0; testIndex < 3; testIndex++) {
+            currentTest++;
+            
+            // Выбираем размер теста в зависимости от сервиса
+            let testSize;
+            if (testIndex === 0) testSize = testSizes[1]; // 256KB
+            else if (testIndex === 1) testSize = testSizes[2]; // 1MB
+            else testSize = Math.min(testSizes[3], service.maxSize); // 2MB или максимум сервиса
+
+            const sizeLabel = testSize >= 1024 * 1024 
+                ? `${(testSize / 1024 / 1024).toFixed(1)}MB` 
+                : `${(testSize / 1024).toFixed(0)}KB`;
+            
+            try {
+                this.updateProgress(75 + (currentTest * 20 / totalTests), 
+                    `Выгрузка ${sizeLabel} в ${service.name}... (${testIndex + 1}/3)`);
                 
-                try {
-                    this.updateProgress(70 + (currentTest * 5), `Выгрузка ${sizeLabel} в ${service.name}...`);
-                    
-                    const testData = this.generateBinaryTestData(size);
-                    const startTime = performance.now();
-                    
-                    const response = await Promise.race([
-                        fetch(service.url, {
-                            method: 'POST',
-                            body: testData,
-                            headers: {
-                                'Content-Type': 'application/octet-stream',
-                                'Content-Length': size.toString(),
-                                'User-Agent': 'VPN-Speed-Test'
-                            }
-                        }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000))
-                    ]);
-
-                    if (response.ok || response.status === 413) { // 413 = too large, но данные отправлены
-                        const endTime = performance.now();
-                        const duration = (endTime - startTime) / 1000;
-                        const sizeInMB = size / (1024 * 1024);
-                        const speedMbps = (sizeInMB * 8) / duration;
-                        
-                        console.log(`Upload test ${sizeLabel} to ${service.name}: ${sizeInMB.toFixed(2)}MB in ${duration.toFixed(1)}s = ${speedMbps.toFixed(1)} Mbps`);
-                        
-                        if (speedMbps > 0.1 && speedMbps < 1000) {
-                            totalSpeed += speedMbps;
-                            testCount++;
-                            
-                            // После успешного большого теста можем остановиться
-                            if (size >= 5 * 1024 * 1024 && testCount >= 1) {
-                                console.log('Successful large upload test, stopping early');
-                                break;
-                            }
-                        }
-                    }
-
-                } catch (error) {
-                    console.log(`Upload test failed for ${sizeLabel} to ${service.name}:`, error.message);
+                const result = await this.performUploadTest(service, testSize, sizeLabel);
+                
+                if (result && result.speedMbps > 0.1 && result.speedMbps < 1000) {
+                    bestResults.push(result);
+                    console.log(`✓ ${sizeLabel} → ${result.speedMbps.toFixed(1)} Mbps (${result.duration.toFixed(1)}s)`);
                 }
+
+                // Пауза между тестами для избежания rate limiting
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+            } catch (error) {
+                console.log(`✗ ${sizeLabel} к ${service.name}: ${error.message}`);
+            }
+        }
+
+        // Если у нас уже есть хорошие результаты, можем остановиться
+        if (bestResults.length >= 5) {
+            console.log('Достаточно успешных тестов, завершаем досрочно');
+            break;
+        }
+    }
+
+    return this.calculateAverageUploadSpeed(bestResults);
+}
+
+// Выполнение одного теста выгрузки с детальным мониторингом
+async performUploadTest(service, size, sizeLabel) {
+    const testData = this.generateOptimizedTestData(size, service.name);
+    
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        let uploadStart = null;
+        let uploadProgress = [];
+        
+        // Отслеживаем прогресс загрузки для более точного измерения
+        xhr.upload.addEventListener('progress', (e) => {
+            if (!uploadStart) {
+                uploadStart = performance.now();
             }
             
-            // Если уже есть успешные тесты, не тестируем все сервисы
-            if (testCount >= 2) break;
-        }
+            if (e.lengthComputable) {
+                const currentTime = performance.now();
+                const elapsedTime = (currentTime - uploadStart) / 1000;
+                const uploadedMB = e.loaded / (1024 * 1024);
+                const instantSpeed = (uploadedMB * 8) / elapsedTime;
+                
+                uploadProgress.push({
+                    time: elapsedTime,
+                    loaded: e.loaded,
+                    total: e.total,
+                    speed: instantSpeed
+                });
+            }
+        });
 
-        if (testCount === 0) {
-            console.log('All upload tests failed, using fallback');
-            return await this.fallbackUploadTest();
-        }
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const endTime = performance.now();
+                
+                if (uploadProgress.length > 0) {
+                    // Используем данные прогресса для более точного измерения
+                    const lastProgress = uploadProgress[uploadProgress.length - 1];
+                    const avgSpeed = this.calculateProgressiveSpeed(uploadProgress);
+                    
+                    resolve({
+                        speedMbps: avgSpeed,
+                        duration: lastProgress.time,
+                        size: size,
+                        service: service.name,
+                        sizeLabel: sizeLabel,
+                        progressPoints: uploadProgress.length
+                    });
+                } else {
+                    // Fallback к общему времени
+                    const totalTime = (endTime - uploadStart) / 1000;
+                    const sizeInMB = size / (1024 * 1024);
+                    const speedMbps = (sizeInMB * 8) / totalTime;
+                    
+                    resolve({
+                        speedMbps: speedMbps,
+                        duration: totalTime,
+                        size: size,
+                        service: service.name,
+                        sizeLabel: sizeLabel,
+                        progressPoints: 0
+                    });
+                }
+            } else {
+                reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+            }
+        });
 
-        const averageSpeed = totalSpeed / testCount;
-        console.log(`Average upload speed: ${averageSpeed.toFixed(1)} Mbps from ${testCount} tests`);
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error'));
+        });
+
+        xhr.addEventListener('timeout', () => {
+            reject(new Error('Timeout'));
+        });
+
+        // Настройка и отправка запроса
+        xhr.open('POST', service.url);
+        xhr.timeout = 30000; // 30 секунд таймаут
         
-        return Math.round(averageSpeed * 10) / 10;
+        // Установка заголовков
+        Object.entries(service.headers).forEach(([key, value]) => {
+            xhr.setRequestHeader(key, value);
+        });
+        
+        xhr.setRequestHeader('Content-Length', size.toString());
+        xhr.setRequestHeader('User-Agent', 'VPN-Speed-Test/1.0');
+        
+        const requestStart = performance.now();
+        uploadStart = requestStart;
+        
+        xhr.send(testData);
+    });
+}
+
+// Вычисление прогрессивной скорости на основе точек прогресса
+calculateProgressiveSpeed(progressPoints) {
+    if (progressPoints.length < 2) {
+        return 0;
     }
+
+    // Исключаем первые 10% и последние 10% для более точного измерения
+    const startIndex = Math.floor(progressPoints.length * 0.1);
+    const endIndex = Math.floor(progressPoints.length * 0.9);
+    
+    if (endIndex <= startIndex) {
+        // Если точек мало, используем все
+        const firstPoint = progressPoints[0];
+        const lastPoint = progressPoints[progressPoints.length - 1];
+        
+        const timeDiff = lastPoint.time - firstPoint.time;
+        const dataDiff = (lastPoint.loaded - firstPoint.loaded) / (1024 * 1024);
+        
+        return timeDiff > 0 ? (dataDiff * 8) / timeDiff : 0;
+    }
+
+    // Используем средний участок для расчета
+    const startPoint = progressPoints[startIndex];
+    const endPoint = progressPoints[endIndex];
+    
+    const timeDiff = endPoint.time - startPoint.time;
+    const dataDiff = (endPoint.loaded - startPoint.loaded) / (1024 * 1024);
+    
+    return timeDiff > 0 ? (dataDiff * 8) / timeDiff : 0;
+}
+
+// Генерация оптимизированных тестовых данных
+generateOptimizedTestData(size, serviceName) {
+    // Для JSON сервисов создаем структурированные данные
+    if (serviceName === 'ReqRes') {
+        const baseObject = {
+            name: "SpeedTest",
+            job: "DataTransfer",
+            timestamp: Date.now(),
+            testId: Math.random().toString(36).substring(7)
+        };
+        
+        // Добавляем данные до нужного размера
+        const targetDataSize = size - JSON.stringify(baseObject).length - 100;
+        const fillData = 'A'.repeat(Math.max(0, targetDataSize));
+        
+        return JSON.stringify({
+            ...baseObject,
+            data: fillData
+        });
+    }
+    
+    // Для бинарных данных используем типичные паттерны
+    const buffer = new ArrayBuffer(size);
+    const view = new Uint8Array(buffer);
+    
+    // Создаем реалистичные данные (не полностью случайные)
+    // что более точно симулирует реальные загрузки файлов
+    for (let i = 0; i < size; i++) {
+        if (i % 1024 === 0) {
+            // Заголовки блоков
+            view[i] = 0xFF;
+        } else if (i % 256 === 0) {
+            // Маркеры секций
+            view[i] = 0xAA;
+        } else if (i % 64 === 0) {
+            // Данные структуры
+            view[i] = (i / 64) % 256;
+        } else {
+            // Основные данные с некоторой закономерностью
+            view[i] = (i * 13 + 37) % 256;
+        }
+    }
+    
+    return buffer;
+}
+
+// Вычисление финальной средней скорости
+calculateAverageUploadSpeed(results) {
+    if (results.length === 0) {
+        console.log('Нет успешных результатов, используем fallback');
+        return 0.5; // Минимальная скорость
+    }
+
+    console.log(`\n=== Анализ результатов (${results.length} тестов) ===`);
+    
+    // Группируем результаты по размерам для более точного анализа
+    const bySize = {};
+    results.forEach(result => {
+        const sizeKey = result.sizeLabel;
+        if (!bySize[sizeKey]) bySize[sizeKey] = [];
+        bySize[sizeKey].push(result.speedMbps);
+    });
+
+    // Анализируем результаты по размерам
+    Object.entries(bySize).forEach(([size, speeds]) => {
+        const avg = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+        const min = Math.min(...speeds);
+        const max = Math.max(...speeds);
+        console.log(`${size}: avg=${avg.toFixed(1)} min=${min.toFixed(1)} max=${max.toFixed(1)} Mbps (${speeds.length} тестов)`);
+    });
+
+    // Используем медиану вместо среднего для исключения выбросов
+    const allSpeeds = results.map(r => r.speedMbps).sort((a, b) => a - b);
+    const median = allSpeeds.length % 2 === 0
+        ? (allSpeeds[allSpeeds.length / 2 - 1] + allSpeeds[allSpeeds.length / 2]) / 2
+        : allSpeeds[Math.floor(allSpeeds.length / 2)];
+
+    // Фильтруем результаты в пределах 50% от медианы для исключения аномалий
+    const filteredResults = results.filter(r => 
+        r.speedMbps >= median * 0.5 && r.speedMbps <= median * 2.0
+    );
+
+    if (filteredResults.length > 0) {
+        const avgFiltered = filteredResults.reduce((sum, r) => sum + r.speedMbps, 0) / filteredResults.length;
+        console.log(`Медиана: ${median.toFixed(1)} Mbps`);
+        console.log(`Среднее отфильтрованное: ${avgFiltered.toFixed(1)} Mbps (${filteredResults.length} из ${results.length} тестов)`);
+        
+        return Math.round(avgFiltered * 10) / 10;
+    }
+
+    return Math.round(median * 10) / 10;
+}
 
     // Запасной тест выгрузки
     async fallbackUploadTest() {
