@@ -9,6 +9,8 @@ class ServiceChecker {
     async checkAllServices() {
         const services = ['youtube', 'telegram', 'whatsapp', 'instagram', 'chatgpt'];
         
+        console.log('🔍 Начинаем проверку всех сервисов...');
+        
         // Сбрасываем статусы
         services.forEach(service => {
             this.updateServiceStatus(service, 'checking', 'Проверка...');
@@ -33,12 +35,17 @@ class ServiceChecker {
         });
 
         await Promise.all(promises);
+        console.log('✅ Проверка всех сервисов завершена');
     }
 
     // YouTube - проверка через Premium страницу (как в bash скрипте)
     async checkYouTubeService() {
+        console.log('🎥 YouTube: Начинаем проверку...');
+        
         try {
             const startTime = performance.now();
+            
+            console.log('🎥 YouTube: Отправляем запрос на https://www.youtube.com/premium');
             
             // Проверяем YouTube Premium страницу
             const response = await Promise.race([
@@ -55,13 +62,18 @@ class ServiceChecker {
             ]);
 
             const loadTime = performance.now() - startTime;
+            console.log(`🎥 YouTube: Ответ получен за ${Math.round(loadTime)}мс, статус: ${response.status}`);
             
             if (response.ok) {
                 const text = await response.text();
+                console.log(`🎥 YouTube: Размер ответа: ${text.length} символов`);
                 
                 // Проверяем на редирект в Китай
                 const isCN = text.includes('www.google.cn');
+                console.log(`🎥 YouTube: Проверка редиректа в Китай: ${isCN ? 'ОБНАРУЖЕН' : 'НЕТ'}`);
+                
                 if (isCN) {
+                    console.log('🎥 YouTube: ❌ Обнаружен редирект в Китай - сервис недоступен');
                     this.updateServiceStatus('youtube', 'error', 'Недоступен (CN)');
                     return;
                 }
@@ -70,29 +82,41 @@ class ServiceChecker {
                 const isNotAvailable = text.includes('Premium is not available in your country');
                 const isAvailable = text.includes('ad-free') || text.includes('premium');
                 
+                console.log(`🎥 YouTube: Доступность Premium:`);
+                console.log(`  - Сообщение "не доступен в стране": ${isNotAvailable ? 'ДА' : 'НЕТ'}`);
+                console.log(`  - Найдены признаки Premium (ad-free/premium): ${isAvailable ? 'ДА' : 'НЕТ'}`);
+                
                 // Определяем регион
                 const regionMatch = text.match(/"countryCode":"([A-Z]{2})"/);
                 const region = regionMatch ? regionMatch[1] : '';
+                console.log(`🎥 YouTube: Определенный регион: ${region || 'НЕ НАЙДЕН'}`);
 
                 if (isNotAvailable) {
+                    console.log(`🎥 YouTube: ⚠️ Premium недоступен в регионе ${region}`);
                     this.updateServiceStatus('youtube', 'slow', `Ограничен${region ? ` (${region})` : ''}`);
                 } else if (isAvailable) {
                     if (loadTime < 2000) {
+                        console.log(`🎥 YouTube: ✅ Полный доступ, быстрая загрузка (${Math.round(loadTime)}мс)`);
                         this.updateServiceStatus('youtube', 'ok', `ОК${region ? ` (${region})` : ''}`);
                     } else {
+                        console.log(`🎥 YouTube: ⚠️ Доступен, но медленная загрузка (${Math.round(loadTime)}мс)`);
                         this.updateServiceStatus('youtube', 'slow', `Медленно${region ? ` (${region})` : ''}`);
                     }
                 } else {
+                    console.log('🎥 YouTube: ✅ Базовый доступ подтвержден');
                     this.updateServiceStatus('youtube', 'ok', 'ОК');
                 }
             } else {
+                console.log(`🎥 YouTube: ❌ HTTP ошибка: ${response.status}`);
                 this.updateServiceStatus('youtube', 'error', `HTTP ${response.status}`);
             }
 
         } catch (error) {
             if (error.message === 'timeout') {
+                console.log('🎥 YouTube: ❌ Таймаут (>8 секунд)');
                 this.updateServiceStatus('youtube', 'error', 'Таймаут');
             } else {
+                console.log(`🎥 YouTube: ❌ Ошибка соединения: ${error.message}`);
                 this.updateServiceStatus('youtube', 'error', 'Недоступен');
             }
         }
@@ -100,6 +124,8 @@ class ServiceChecker {
 
     // ChatGPT - проверка региона через CDN trace (как в bash скрипте)
     async checkChatGPTService() {
+        console.log('🤖 ChatGPT: Начинаем проверку...');
+        
         try {
             // Список поддерживаемых стран из bash скрипта
             const supportedCountries = [
@@ -115,6 +141,9 @@ class ServiceChecker {
                 "CH", "TW", "TZ", "TH", "TL", "TG", "TO", "TT", "TN", "TR", "TV", "UG", "UA", "AE", "GB", "US", "UY", "VU", "ZM"
             ];
 
+            console.log(`🤖 ChatGPT: Всего поддерживаемых стран: ${supportedCountries.length}`);
+            console.log('🤖 ChatGPT: Отправляем запрос на CDN trace...');
+
             const response = await Promise.race([
                 fetch('https://chat.openai.com/cdn-cgi/trace', {
                     method: 'GET',
@@ -125,27 +154,41 @@ class ServiceChecker {
 
             if (response.ok) {
                 const text = await response.text();
+                console.log('🤖 ChatGPT: CDN trace получен:');
+                console.log(text);
+                
                 const locationMatch = text.match(/loc=([A-Z]{2})/);
                 const location = locationMatch ? locationMatch[1] : '';
+                
+                console.log(`🤖 ChatGPT: Извлеченный код страны: "${location}"`);
 
                 if (!location) {
+                    console.log('🤖 ChatGPT: ❌ Не удалось определить регион из trace');
                     this.updateServiceStatus('chatgpt', 'error', 'Регион не определен');
                     return;
                 }
 
-                if (supportedCountries.includes(location)) {
+                const isSupported = supportedCountries.includes(location);
+                console.log(`🤖 ChatGPT: Проверка поддержки региона ${location}: ${isSupported ? 'ПОДДЕРЖИВАЕТСЯ' : 'НЕ ПОДДЕРЖИВАЕТСЯ'}`);
+
+                if (isSupported) {
+                    console.log(`🤖 ChatGPT: ✅ Регион ${location} поддерживается - сервис доступен`);
                     this.updateServiceStatus('chatgpt', 'ok', `ОК (${location})`);
                 } else {
+                    console.log(`🤖 ChatGPT: ❌ Регион ${location} не поддерживается - сервис недоступен`);
                     this.updateServiceStatus('chatgpt', 'error', `Недоступен (${location})`);
                 }
             } else {
+                console.log(`🤖 ChatGPT: ❌ HTTP ошибка: ${response.status}`);
                 this.updateServiceStatus('chatgpt', 'error', 'Недоступен');
             }
 
         } catch (error) {
             if (error.message === 'timeout') {
+                console.log('🤖 ChatGPT: ❌ Таймаут при получении CDN trace');
                 this.updateServiceStatus('chatgpt', 'error', 'Таймаут');
             } else {
+                console.log(`🤖 ChatGPT: ❌ Ошибка соединения: ${error.message}`);
                 this.updateServiceStatus('chatgpt', 'error', 'Недоступен');
             }
         }
@@ -153,9 +196,13 @@ class ServiceChecker {
 
     // Instagram - проверка лицензированной музыки (адаптация из bash скрипта)
     async checkInstagramService() {
+        console.log('📸 Instagram: Начинаем проверку...');
+        
         try {
             // Упрощенная проверка доступности Instagram
             const startTime = performance.now();
+            
+            console.log('📸 Instagram: Отправляем HEAD запрос на главную страницу...');
             
             // Сначала простая проверка доступности
             const basicResponse = await Promise.race([
@@ -170,14 +217,20 @@ class ServiceChecker {
             ]);
 
             const loadTime = performance.now() - startTime;
+            console.log(`📸 Instagram: Базовый ответ получен за ${Math.round(loadTime)}мс, статус: ${basicResponse.status}`);
 
             if (!basicResponse.ok) {
+                console.log(`📸 Instagram: ❌ Базовая проверка не прошла - HTTP ${basicResponse.status}`);
                 this.updateServiceStatus('instagram', 'error', 'Недоступен');
                 return;
             }
 
+            console.log('📸 Instagram: ✅ Базовая доступность подтверждена');
+            console.log('📸 Instagram: Проверяем доступность API...');
+
             // Пытаемся получить более детальную информацию
             try {
+                const apiStartTime = performance.now();
                 const detailedResponse = await Promise.race([
                     fetch('https://www.instagram.com/api/v1/web/data/shared_data/', {
                         method: 'GET',
@@ -191,31 +244,46 @@ class ServiceChecker {
                     new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
                 ]);
 
+                const apiLoadTime = performance.now() - apiStartTime;
+                console.log(`📸 Instagram: API ответ получен за ${Math.round(apiLoadTime)}мс, статус: ${detailedResponse.status}`);
+
                 if (detailedResponse.ok) {
                     const data = await detailedResponse.json();
+                    console.log('📸 Instagram: ✅ API доступен, данные получены');
+                    console.log(`📸 Instagram: Структура данных: ${Object.keys(data).join(', ')}`);
+                    
                     // Если получили данные, значит доступ полный
                     if (loadTime < 2000) {
+                        console.log(`📸 Instagram: ✅ Отличная производительность (${Math.round(loadTime)}мс)`);
                         this.updateServiceStatus('instagram', 'ok', 'ОК');
                     } else {
+                        console.log(`📸 Instagram: ⚠️ Медленная загрузка (${Math.round(loadTime)}мс)`);
                         this.updateServiceStatus('instagram', 'slow', 'Медленно');
                     }
                 } else {
+                    console.log(`📸 Instagram: ⚠️ API недоступен (статус: ${detailedResponse.status}), но основной сайт работает`);
                     // Базовый доступ есть, но API может быть ограничен
                     this.updateServiceStatus('instagram', 'slow', 'Ограничен');
                 }
             } catch (apiError) {
+                console.log(`📸 Instagram: ⚠️ API недоступно (${apiError.message}), анализируем базовую доступность...`);
+                
                 // API недоступно, но основной сайт работает
                 if (loadTime < 3000) {
+                    console.log(`📸 Instagram: ⚠️ Частичный доступ (API недоступен, но сайт работает)`);
                     this.updateServiceStatus('instagram', 'slow', 'Частично');
                 } else {
+                    console.log(`📸 Instagram: ❌ Медленный доступ (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('instagram', 'error', 'Медленно');
                 }
             }
 
         } catch (error) {
             if (error.message === 'timeout') {
+                console.log('📸 Instagram: ❌ Таймаут при базовой проверке');
                 this.updateServiceStatus('instagram', 'error', 'Таймаут');
             } else {
+                console.log(`📸 Instagram: ❌ Ошибка соединения: ${error.message}`);
                 this.updateServiceStatus('instagram', 'error', 'Недоступен');
             }
         }
@@ -223,8 +291,12 @@ class ServiceChecker {
 
     // Telegram - проверка Web версии
     async checkTelegramService() {
+        console.log('💬 Telegram: Начинаем проверку...');
+        
         try {
             const startTime = performance.now();
+            
+            console.log('💬 Telegram: Проверяем Telegram Web (https://web.telegram.org/z/)...');
             
             // Проверяем доступность Telegram Web
             const response = await Promise.race([
@@ -239,18 +311,27 @@ class ServiceChecker {
             ]);
 
             const loadTime = performance.now() - startTime;
+            console.log(`💬 Telegram: Web ответ получен за ${Math.round(loadTime)}мс, статус: ${response.status}`);
 
             if (response.ok) {
+                console.log('💬 Telegram: ✅ Telegram Web доступен');
+                
                 if (loadTime < 2000) {
+                    console.log(`💬 Telegram: ✅ Отличная производительность (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('telegram', 'ok', 'ОК');
                 } else if (loadTime < 5000) {
+                    console.log(`💬 Telegram: ⚠️ Медленная загрузка (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('telegram', 'slow', 'Медленно');
                 } else {
+                    console.log(`💬 Telegram: ❌ Очень медленная загрузка (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('telegram', 'error', 'Очень медленно');
                 }
             } else {
+                console.log(`💬 Telegram: ⚠️ Telegram Web недоступен (${response.status}), проверяем API...`);
+                
                 // Пробуем альтернативный метод - проверка API эндпоинта
                 try {
+                    const apiStartTime = performance.now();
                     const apiResponse = await Promise.race([
                         fetch('https://api.telegram.org/', {
                             method: 'HEAD',
@@ -259,20 +340,28 @@ class ServiceChecker {
                         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
                     ]);
                     
+                    const apiLoadTime = performance.now() - apiStartTime;
+                    console.log(`💬 Telegram: API ответ получен за ${Math.round(apiLoadTime)}мс, статус: ${apiResponse.status}`);
+                    
                     if (apiResponse.ok) {
+                        console.log('💬 Telegram: ⚠️ Web недоступен, но API работает');
                         this.updateServiceStatus('telegram', 'slow', 'API доступен');
                     } else {
+                        console.log(`💬 Telegram: ❌ И Web и API недоступны`);
                         this.updateServiceStatus('telegram', 'error', 'Недоступен');
                     }
                 } catch (apiError) {
+                    console.log(`💬 Telegram: ❌ API также недоступен: ${apiError.message}`);
                     this.updateServiceStatus('telegram', 'error', 'Недоступен');
                 }
             }
 
         } catch (error) {
             if (error.message === 'timeout') {
+                console.log('💬 Telegram: ❌ Таймаут при проверке Web версии');
                 this.updateServiceStatus('telegram', 'error', 'Таймаут');
             } else {
+                console.log(`💬 Telegram: ❌ Ошибка соединения: ${error.message}`);
                 this.updateServiceStatus('telegram', 'error', 'Недоступен');
             }
         }
@@ -280,8 +369,12 @@ class ServiceChecker {
 
     // WhatsApp - проверка Web версии
     async checkWhatsAppService() {
+        console.log('📱 WhatsApp: Начинаем проверку...');
+        
         try {
             const startTime = performance.now();
+            
+            console.log('📱 WhatsApp: Отправляем HEAD запрос на https://web.whatsapp.com/...');
             
             const response = await Promise.race([
                 fetch('https://web.whatsapp.com/', {
@@ -295,23 +388,32 @@ class ServiceChecker {
             ]);
 
             const loadTime = performance.now() - startTime;
+            console.log(`📱 WhatsApp: Ответ получен за ${Math.round(loadTime)}мс, статус: ${response.status}`);
 
             if (response.ok) {
+                console.log('📱 WhatsApp: ✅ WhatsApp Web доступен');
+                
                 if (loadTime < 2000) {
+                    console.log(`📱 WhatsApp: ✅ Отличная производительность (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('whatsapp', 'ok', 'ОК');
                 } else if (loadTime < 5000) {
+                    console.log(`📱 WhatsApp: ⚠️ Медленная загрузка (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('whatsapp', 'slow', 'Медленно');
                 } else {
+                    console.log(`📱 WhatsApp: ❌ Очень медленная загрузка (${Math.round(loadTime)}мс)`);
                     this.updateServiceStatus('whatsapp', 'error', 'Очень медленно');
                 }
             } else {
+                console.log(`📱 WhatsApp: ❌ HTTP ошибка: ${response.status}`);
                 this.updateServiceStatus('whatsapp', 'error', `HTTP ${response.status}`);
             }
 
         } catch (error) {
             if (error.message === 'timeout') {
+                console.log('📱 WhatsApp: ❌ Таймаут при проверке Web версии');
                 this.updateServiceStatus('whatsapp', 'error', 'Таймаут');
             } else {
+                console.log(`📱 WhatsApp: ❌ Ошибка соединения: ${error.message}`);
                 this.updateServiceStatus('whatsapp', 'error', 'Недоступен');
             }
         }
@@ -340,6 +442,7 @@ class ServiceChecker {
 
     // Дополнительная проверка конкретного сервиса (для кнопок в UI)
     async recheckService(serviceName) {
+        console.log(`🔄 Повторная проверка сервиса: ${serviceName}`);
         this.updateServiceStatus(serviceName, 'checking', 'Повторная проверка...');
         
         switch(serviceName) {
@@ -363,13 +466,18 @@ class ServiceChecker {
 
     // Получение детального отчета о доступности
     async getDetailedReport() {
+        console.log('📋 Создаем детальный отчет о доступности сервисов...');
+        
         const services = ['youtube', 'chatgpt', 'instagram', 'telegram', 'whatsapp'];
         const report = {
             timestamp: new Date().toISOString(),
             services: {}
         };
 
+        console.log(`📋 Отчет создан в: ${report.timestamp}`);
+
         for (const service of services) {
+            console.log(`📋 Обновляем данные для ${service}...`);
             await this.recheckService(service);
             
             const statusElement = document.getElementById(`${service}-status`);
@@ -381,9 +489,12 @@ class ServiceChecker {
                     status: indicator ? indicator.className.split(' ').pop() : 'unknown',
                     message: text ? text.textContent : 'No data'
                 };
+                
+                console.log(`📋 ${service}: ${report.services[service].status} - ${report.services[service].message}`);
             }
         }
 
+        console.log('📋 Детальный отчет готов:', report);
         return report;
     }
 }
