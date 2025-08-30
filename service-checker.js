@@ -39,72 +39,7 @@ class ServiceChecker {
     }
 
     // YouTube - проверка через Premium страницу (адаптация из Stream-All.js)
-    async checkYouTubeService() {
-        console.log('🎥 YouTube: Начинаем проверку по методу Stream-All.js...');
-        
-        try {
-            const startTime = performance.now();
-            
-            console.log('🎥 YouTube: Отправляем запрос на https://www.youtube.com/premium');
-            console.log('🎥 YouTube: Заголовки запроса:', {
-                'User-Agent': this.UA_Browser,
-                'Accept-Language': 'en'
-            });
-            
-            // Используем CORS proxy или no-cors режим для обхода ограничений
-            let response;
-            let responseData;
-            
-            try {
-                // Попытка 1: Прямой запрос с no-cors
-                response = await Promise.race([
-                    fetch('https://www.youtube.com/premium', {
-                        method: 'GET',
-                        mode: 'no-cors',
-                        headers: {
-                            'Accept-Language': 'en',
-                            'User-Agent': this.UA_Browser
-                        },
-                        cache: 'no-cache'
-                    }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
-                ]);
-                
-                console.log('🎥 YouTube: ⚠️ No-cors запрос выполнен, но данные недоступны');
-                console.log('🎥 YouTube: Пробуем альтернативные методы...');
-                
-            } catch (corsError) {
-                console.log(`🎥 YouTube: ❌ CORS ошибка: ${corsError.message}`);
-            }
-
-            // Альтернативный метод: проверка через oEmbed API + iframe
-            const embedResult = await this.checkYouTubeViaEmbed();
-            const iframeResult = await this.checkYouTubeViaIframe();
-            
-            if (embedResult.success && iframeResult.success) {
-                const avgLoadTime = (embedResult.loadTime + iframeResult.loadTime) / 2;
-                
-                if (avgLoadTime < 2000) {
-                    console.log(`🎥 YouTube: ✅ Полный доступ подтвержден (среднее время: ${Math.round(avgLoadTime)}мс)`);
-                    this.updateServiceStatus('youtube', 'ok', `ОК (${embedResult.region || 'EU'})`);
-                } else {
-                    console.log(`🎥 YouTube: ⚠️ Доступен, но медленно (среднее время: ${Math.round(avgLoadTime)}мс)`);
-                    this.updateServiceStatus('youtube', 'slow', `Медленно (${embedResult.region || 'EU'})`);
-                }
-            } else if (embedResult.success || iframeResult.success) {
-                console.log('🎥 YouTube: ⚠️ Частичный доступ (некоторые функции ограничены)');
-                this.updateServiceStatus('youtube', 'slow', 'Ограничен');
-            } else {
-                console.log('🎥 YouTube: ❌ Доступ заблокирован или недоступен');
-                this.updateServiceStatus('youtube', 'error', 'Недоступен');
-            }
-
-        } catch (error) {
-            console.log(`🎥 YouTube: ❌ Критическая ошибка: ${error.message}`);
-            this.updateServiceStatus('youtube', 'error', 'Ошибка проверки');
-        }
-    }
-
+checkYouTubeService 
     // Проверка YouTube через oEmbed API (аналог оригинального метода)
     async checkYouTubeViaEmbed() {
         try {
