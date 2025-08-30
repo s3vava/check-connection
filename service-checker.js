@@ -38,87 +38,158 @@ class ServiceChecker {
         console.log('✅ Проверка всех сервисов завершена');
     }
 
-    // YouTube - проверка через Premium страницу (как в bash скрипте)
+    // YouTube - проверка через альтернативные методы (обход CORS)
     async checkYouTubeService() {
         console.log('🎥 YouTube: Начинаем проверку...');
         
         try {
+            // Метод 1: Проверка через embed API (не блокируется CORS)
+            const embedSuccess = await this.checkYouTubeEmbed();
+            
+            // Метод 2: Проверка через iframe (определение доступности)
+            const iframeSuccess = await this.checkYouTubeIframe();
+            
+            // Метод 3: Проверка через JSONP API (если доступно)
+            const apiSuccess = await this.checkYouTubeAPI();
+            
+            // Анализ результатов
+            const results = { embed: embedSuccess, iframe: iframeSuccess, api: apiSuccess };
+            console.log('🎥 YouTube: Результаты проверки методов:', results);
+            
+            if (embedSuccess && iframeSuccess && apiSuccess) {
+                console.log('🎥 YouTube: ✅ Полный доступ (все методы работают)');
+                this.updateServiceStatus('youtube', 'ok', 'ОК (полный доступ)');
+            } else if (embedSuccess || iframeSuccess) {
+                console.log('🎥 YouTube: ⚠️ Частичный доступ (некоторые функции ограничены)');
+                this.updateServiceStatus('youtube', 'slow', 'Частично доступен');
+            } else {
+                console.log('🎥 YouTube: ❌ Доступ заблокирован');
+                this.updateServiceStatus('youtube', 'error', 'Заблокирован');
+            }
+            
+        } catch (error) {
+            console.log(`🎥 YouTube: ❌ Общая ошибка проверки: ${error.message}`);
+            this.updateServiceStatus('youtube', 'error', 'Ошибка проверки');
+        }
+    }
+
+    // Проверка YouTube через embed
+    async checkYouTubeEmbed() {
+        try {
+            console.log('🎥 YouTube: Проверяем embed доступность...');
+            
             const startTime = performance.now();
             
-            console.log('🎥 YouTube: Отправляем запрос на https://www.youtube.com/premium');
-            
-            // Проверяем YouTube Premium страницу
+            // Проверяем возможность загрузки embed скрипта
             const response = await Promise.race([
-                fetch('https://www.youtube.com/premium', {
-                    method: 'GET',
-                    headers: {
-                        'Accept-Language': 'en',
-                        'User-Agent': this.UA_Browser,
-                        'Cookie': 'YSC=BiCUU3-5Gdk; CONSENT=YES+cb.20220301-11-p0.en+FX+700; GPS=1; VISITOR_INFO1_LIVE=4VwPMkB7W5A; PREF=tz=Asia.Shanghai'
-                    },
+                fetch('https://www.youtube.com/iframe_api', {
+                    method: 'HEAD',
+                    mode: 'no-cors', // Обходим CORS
                     cache: 'no-cache'
                 }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
             ]);
-
+            
             const loadTime = performance.now() - startTime;
-            console.log(`🎥 YouTube: Ответ получен за ${Math.round(loadTime)}мс, статус: ${response.status}`);
+            console.log(`🎥 YouTube: Embed API проверен за ${Math.round(loadTime)}мс`);
+            
+            // В режиме no-cors мы не получим статус, но если нет исключения - значит доступен
+            console.log('🎥 YouTube: ✅ Embed API доступен');
+            return true;
+            
+        } catch (error) {
+            console.log(`🎥 YouTube: ❌ Embed API недоступен: ${error.message}`);
+            return false;
+        }
+    }
+
+    // Проверка через создание iframe
+    async checkYouTubeIframe() {
+        return new Promise((resolve) => {
+            console.log('🎥 YouTube: Проверяем доступность через iframe...');
+            
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.width = '1';
+                iframe.height = '1';
+                
+                let resolved = false;
+                
+                // Тестовое видео
+                const testVideoId = 'dQw4w9WgXcQ'; // Rick Roll - всегда доступно
+                iframe.src = `https://www.youtube.com/embed/${testVideoId}?autoplay=0&controls=0&mute=1`;
+                
+                iframe.onload = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('🎥 YouTube: ✅ Iframe загружен успешно');
+                        document.body.removeChild(iframe);
+                        resolve(true);
+                    }
+                };
+                
+                iframe.onerror = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('🎥 YouTube: ❌ Iframe не загрузился');
+                        document.body.removeChild(iframe);
+                        resolve(false);
+                    }
+                };
+                
+                document.body.appendChild(iframe);
+                
+                // Таймаут
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('🎥 YouTube: ⚠️ Iframe загрузка таймаут');
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                        resolve(false);
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                console.log(`🎥 YouTube: ❌ Ошибка создания iframe: ${error.message}`);
+                resolve(false);
+            }
+        });
+    }
+
+    // Проверка через доступные API endpoints
+    async checkYouTubeAPI() {
+        try {
+            console.log('🎥 YouTube: Проверяем доступность API endpoints...');
+            
+            // Проверяем oembed API - он обычно доступен для CORS
+            const response = await Promise.race([
+                fetch('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ&format=json', {
+                    method: 'GET',
+                    cache: 'no-cache'
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+            ]);
             
             if (response.ok) {
-                const text = await response.text();
-                console.log(`🎥 YouTube: Размер ответа: ${text.length} символов`);
+                const data = await response.json();
+                console.log('🎥 YouTube: ✅ oEmbed API работает');
+                console.log(`🎥 YouTube: Получены данные: ${data.title}`);
                 
-                // Проверяем на редирект в Китай
-                const isCN = text.includes('www.google.cn');
-                console.log(`🎥 YouTube: Проверка редиректа в Китай: ${isCN ? 'ОБНАРУЖЕН' : 'НЕТ'}`);
-                
-                if (isCN) {
-                    console.log('🎥 YouTube: ❌ Обнаружен редирект в Китай - сервис недоступен');
-                    this.updateServiceStatus('youtube', 'error', 'Недоступен (CN)');
-                    return;
+                // Проверяем данные на наличие ограничений
+                if (data.title && data.author_name) {
+                    return true;
                 }
-
-                // Проверяем доступность Premium
-                const isNotAvailable = text.includes('Premium is not available in your country');
-                const isAvailable = text.includes('ad-free') || text.includes('premium');
-                
-                console.log(`🎥 YouTube: Доступность Premium:`);
-                console.log(`  - Сообщение "не доступен в стране": ${isNotAvailable ? 'ДА' : 'НЕТ'}`);
-                console.log(`  - Найдены признаки Premium (ad-free/premium): ${isAvailable ? 'ДА' : 'НЕТ'}`);
-                
-                // Определяем регион
-                const regionMatch = text.match(/"countryCode":"([A-Z]{2})"/);
-                const region = regionMatch ? regionMatch[1] : '';
-                console.log(`🎥 YouTube: Определенный регион: ${region || 'НЕ НАЙДЕН'}`);
-
-                if (isNotAvailable) {
-                    console.log(`🎥 YouTube: ⚠️ Premium недоступен в регионе ${region}`);
-                    this.updateServiceStatus('youtube', 'slow', `Ограничен${region ? ` (${region})` : ''}`);
-                } else if (isAvailable) {
-                    if (loadTime < 2000) {
-                        console.log(`🎥 YouTube: ✅ Полный доступ, быстрая загрузка (${Math.round(loadTime)}мс)`);
-                        this.updateServiceStatus('youtube', 'ok', `ОК${region ? ` (${region})` : ''}`);
-                    } else {
-                        console.log(`🎥 YouTube: ⚠️ Доступен, но медленная загрузка (${Math.round(loadTime)}мс)`);
-                        this.updateServiceStatus('youtube', 'slow', `Медленно${region ? ` (${region})` : ''}`);
-                    }
-                } else {
-                    console.log('🎥 YouTube: ✅ Базовый доступ подтвержден');
-                    this.updateServiceStatus('youtube', 'ok', 'ОК');
-                }
-            } else {
-                console.log(`🎥 YouTube: ❌ HTTP ошибка: ${response.status}`);
-                this.updateServiceStatus('youtube', 'error', `HTTP ${response.status}`);
             }
-
+            
+            console.log(`🎥 YouTube: ⚠️ oEmbed API ответил со статусом: ${response.status}`);
+            return false;
+            
         } catch (error) {
-            if (error.message === 'timeout') {
-                console.log('🎥 YouTube: ❌ Таймаут (>8 секунд)');
-                this.updateServiceStatus('youtube', 'error', 'Таймаут');
-            } else {
-                console.log(`🎥 YouTube: ❌ Ошибка соединения: ${error.message}`);
-                this.updateServiceStatus('youtube', 'error', 'Недоступен');
-            }
+            console.log(`🎥 YouTube: ❌ API недоступен: ${error.message}`);
+            return false;
         }
     }
 
