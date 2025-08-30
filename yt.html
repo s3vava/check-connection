@@ -45,7 +45,7 @@
       const resultDiv = document.getElementById("result");
       resultDiv.textContent = "⏳ Проверка...";
       try {
-        const response = await fetch("/.netlify/functions/check-youtube");
+        const response = await fetch("/.netlify/functions/check-youtube.js");
         const data = await response.json();
         resultDiv.textContent = JSON.stringify(data, null, 2);
       } catch (err) {
