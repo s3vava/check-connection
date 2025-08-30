@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "ytdl-core": "^4.11.5",
-    "node-fetch": "^3.3.2"
+    "ytdl-core": "^4.11.5"
   }
 }

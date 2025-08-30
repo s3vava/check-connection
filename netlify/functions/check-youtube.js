@@ -19,9 +19,9 @@ export async function handler(event, context) {
 
     // Скачиваем первые 1 MB (чтобы не грузить весь файл)
     const start = Date.now();
-    const response = await fetch(format.url, {
-      headers: { Range: "bytes=0-999999" },
-    });
+  const response = await fetch(format.url, {
+  headers: { Range: "bytes=0-999999" },
+});
 
     if (!response.ok) {
       return {
