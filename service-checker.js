@@ -38,159 +38,215 @@ class ServiceChecker {
         console.log('✅ Проверка всех сервисов завершена');
     }
 
-    // YouTube - проверка через альтернативные методы (обход CORS)
+    // YouTube - проверка через Premium страницу (адаптация из Stream-All.js)
     async checkYouTubeService() {
-        console.log('🎥 YouTube: Начинаем проверку...');
+        console.log('🎥 YouTube: Начинаем проверку по методу Stream-All.js...');
         
         try {
-            // Метод 1: Проверка через embed API (не блокируется CORS)
-            const embedSuccess = await this.checkYouTubeEmbed();
+            const startTime = performance.now();
             
-            // Метод 2: Проверка через iframe (определение доступности)
-            const iframeSuccess = await this.checkYouTubeIframe();
+            console.log('🎥 YouTube: Отправляем запрос на https://www.youtube.com/premium');
+            console.log('🎥 YouTube: Заголовки запроса:', {
+                'User-Agent': this.UA_Browser,
+                'Accept-Language': 'en'
+            });
             
-            // Метод 3: Проверка через JSONP API (если доступно)
-            const apiSuccess = await this.checkYouTubeAPI();
+            // Используем CORS proxy или no-cors режим для обхода ограничений
+            let response;
+            let responseData;
             
-            // Анализ результатов
-            const results = { embed: embedSuccess, iframe: iframeSuccess, api: apiSuccess };
-            console.log('🎥 YouTube: Результаты проверки методов:', results);
-            
-            if (embedSuccess && iframeSuccess && apiSuccess) {
-                console.log('🎥 YouTube: ✅ Полный доступ (все методы работают)');
-                this.updateServiceStatus('youtube', 'ok', 'ОК (полный доступ)');
-            } else if (embedSuccess || iframeSuccess) {
-                console.log('🎥 YouTube: ⚠️ Частичный доступ (некоторые функции ограничены)');
-                this.updateServiceStatus('youtube', 'slow', 'Частично доступен');
-            } else {
-                console.log('🎥 YouTube: ❌ Доступ заблокирован');
-                this.updateServiceStatus('youtube', 'error', 'Заблокирован');
+            try {
+                // Попытка 1: Прямой запрос с no-cors
+                response = await Promise.race([
+                    fetch('https://www.youtube.com/premium', {
+                        method: 'GET',
+                        mode: 'no-cors',
+                        headers: {
+                            'Accept-Language': 'en',
+                            'User-Agent': this.UA_Browser
+                        },
+                        cache: 'no-cache'
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+                ]);
+                
+                console.log('🎥 YouTube: ⚠️ No-cors запрос выполнен, но данные недоступны');
+                console.log('🎥 YouTube: Пробуем альтернативные методы...');
+                
+            } catch (corsError) {
+                console.log(`🎥 YouTube: ❌ CORS ошибка: ${corsError.message}`);
             }
+
+            // Альтернативный метод: проверка через oEmbed API + iframe
+            const embedResult = await this.checkYouTubeViaEmbed();
+            const iframeResult = await this.checkYouTubeViaIframe();
             
+            if (embedResult.success && iframeResult.success) {
+                const avgLoadTime = (embedResult.loadTime + iframeResult.loadTime) / 2;
+                
+                if (avgLoadTime < 2000) {
+                    console.log(`🎥 YouTube: ✅ Полный доступ подтвержден (среднее время: ${Math.round(avgLoadTime)}мс)`);
+                    this.updateServiceStatus('youtube', 'ok', `ОК (${embedResult.region || 'EU'})`);
+                } else {
+                    console.log(`🎥 YouTube: ⚠️ Доступен, но медленно (среднее время: ${Math.round(avgLoadTime)}мс)`);
+                    this.updateServiceStatus('youtube', 'slow', `Медленно (${embedResult.region || 'EU'})`);
+                }
+            } else if (embedResult.success || iframeResult.success) {
+                console.log('🎥 YouTube: ⚠️ Частичный доступ (некоторые функции ограничены)');
+                this.updateServiceStatus('youtube', 'slow', 'Ограничен');
+            } else {
+                console.log('🎥 YouTube: ❌ Доступ заблокирован или недоступен');
+                this.updateServiceStatus('youtube', 'error', 'Недоступен');
+            }
+
         } catch (error) {
-            console.log(`🎥 YouTube: ❌ Общая ошибка проверки: ${error.message}`);
+            console.log(`🎥 YouTube: ❌ Критическая ошибка: ${error.message}`);
             this.updateServiceStatus('youtube', 'error', 'Ошибка проверки');
         }
     }
 
-    // Проверка YouTube через embed
-    async checkYouTubeEmbed() {
+    // Проверка YouTube через oEmbed API (аналог оригинального метода)
+    async checkYouTubeViaEmbed() {
         try {
-            console.log('🎥 YouTube: Проверяем embed доступность...');
+            console.log('🎥 YouTube: Метод 1 - Проверка через oEmbed API...');
             
             const startTime = performance.now();
             
-            // Проверяем возможность загрузки embed скрипта
+            // Тестируем с популярным видео
+            const testVideoUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
             const response = await Promise.race([
-                fetch('https://www.youtube.com/iframe_api', {
-                    method: 'HEAD',
-                    mode: 'no-cors', // Обходим CORS
-                    cache: 'no-cache'
-                }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-            ]);
-            
-            const loadTime = performance.now() - startTime;
-            console.log(`🎥 YouTube: Embed API проверен за ${Math.round(loadTime)}мс`);
-            
-            // В режиме no-cors мы не получим статус, но если нет исключения - значит доступен
-            console.log('🎥 YouTube: ✅ Embed API доступен');
-            return true;
-            
-        } catch (error) {
-            console.log(`🎥 YouTube: ❌ Embed API недоступен: ${error.message}`);
-            return false;
-        }
-    }
-
-    // Проверка через создание iframe
-    async checkYouTubeIframe() {
-        return new Promise((resolve) => {
-            console.log('🎥 YouTube: Проверяем доступность через iframe...');
-            
-            try {
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.width = '1';
-                iframe.height = '1';
-                
-                let resolved = false;
-                
-                // Тестовое видео
-                const testVideoId = 'dQw4w9WgXcQ'; // Rick Roll - всегда доступно
-                iframe.src = `https://www.youtube.com/embed/${testVideoId}?autoplay=0&controls=0&mute=1`;
-                
-                iframe.onload = () => {
-                    if (!resolved) {
-                        resolved = true;
-                        console.log('🎥 YouTube: ✅ Iframe загружен успешно');
-                        document.body.removeChild(iframe);
-                        resolve(true);
-                    }
-                };
-                
-                iframe.onerror = () => {
-                    if (!resolved) {
-                        resolved = true;
-                        console.log('🎥 YouTube: ❌ Iframe не загрузился');
-                        document.body.removeChild(iframe);
-                        resolve(false);
-                    }
-                };
-                
-                document.body.appendChild(iframe);
-                
-                // Таймаут
-                setTimeout(() => {
-                    if (!resolved) {
-                        resolved = true;
-                        console.log('🎥 YouTube: ⚠️ Iframe загрузка таймаут');
-                        if (document.body.contains(iframe)) {
-                            document.body.removeChild(iframe);
-                        }
-                        resolve(false);
-                    }
-                }, 5000);
-                
-            } catch (error) {
-                console.log(`🎥 YouTube: ❌ Ошибка создания iframe: ${error.message}`);
-                resolve(false);
-            }
-        });
-    }
-
-    // Проверка через доступные API endpoints
-    async checkYouTubeAPI() {
-        try {
-            console.log('🎥 YouTube: Проверяем доступность API endpoints...');
-            
-            // Проверяем oembed API - он обычно доступен для CORS
-            const response = await Promise.race([
-                fetch('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ&format=json', {
+                fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(testVideoUrl)}&format=json`, {
                     method: 'GET',
                     cache: 'no-cache'
                 }),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
             ]);
             
+            const loadTime = performance.now() - startTime;
+            console.log(`🎥 YouTube: oEmbed ответ получен за ${Math.round(loadTime)}мс, статус: ${response.status}`);
+            
             if (response.ok) {
                 const data = await response.json();
-                console.log('🎥 YouTube: ✅ oEmbed API работает');
-                console.log(`🎥 YouTube: Получены данные: ${data.title}`);
+                console.log('🎥 YouTube: oEmbed данные получены:', {
+                    title: data.title,
+                    author: data.author_name,
+                    provider: data.provider_name
+                });
                 
-                // Проверяем данные на наличие ограничений
-                if (data.title && data.author_name) {
-                    return true;
+                // Проверяем качество данных (аналог проверки "Premium is not available")
+                const hasFullData = data.title && data.author_name && data.html;
+                const isRestricted = data.title && data.title.includes('restricted') || 
+                                   data.title.includes('not available');
+                
+                console.log('🎥 YouTube: Анализ oEmbed данных:');
+                console.log(`  - Полные данные получены: ${hasFullData ? 'ДА' : 'НЕТ'}`);
+                console.log(`  - Обнаружены ограничения: ${isRestricted ? 'ДА' : 'НЕТ'}`);
+                
+                if (isRestricted) {
+                    console.log('🎥 YouTube: ⚠️ oEmbed показывает ограничения');
+                    return { success: false, loadTime, region: null };
+                }
+                
+                if (hasFullData) {
+                    console.log('🎥 YouTube: ✅ oEmbed полностью функционален');
+                    return { success: true, loadTime, region: 'EU' };
                 }
             }
             
-            console.log(`🎥 YouTube: ⚠️ oEmbed API ответил со статусом: ${response.status}`);
-            return false;
+            console.log(`🎥 YouTube: ❌ oEmbed ошибка статус: ${response.status}`);
+            return { success: false, loadTime, region: null };
             
         } catch (error) {
-            console.log(`🎥 YouTube: ❌ API недоступен: ${error.message}`);
-            return false;
+            console.log(`🎥 YouTube: ❌ oEmbed недоступен: ${error.message}`);
+            return { success: false, loadTime: 0, region: null };
         }
+    }
+
+    // Проверка через iframe (имитация оригинального метода проверки Premium)
+    async checkYouTubeViaIframe() {
+        return new Promise((resolve) => {
+            console.log('🎥 YouTube: Метод 2 - Проверка через iframe (имитация Premium проверки)...');
+            
+            try {
+                const startTime = performance.now();
+                const iframe = document.createElement('iframe');
+                
+                // Настройки iframe
+                iframe.style.display = 'none';
+                iframe.width = '1';
+                iframe.height = '1';
+                iframe.sandbox = 'allow-scripts allow-same-origin';
+                
+                let resolved = false;
+                let loadTime = 0;
+                
+                // Используем embed URL с параметрами, похожими на Premium проверку
+                const testVideoId = 'dQw4w9WgXcQ';
+                iframe.src = `https://www.youtube.com/embed/${testVideoId}?enablejsapi=1&origin=${window.location.origin}&autoplay=0&controls=1`;
+                
+                console.log(`🎥 YouTube: Загружаем iframe с URL: ${iframe.src}`);
+                
+                iframe.onload = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        loadTime = performance.now() - startTime;
+                        
+                        console.log(`🎥 YouTube: ✅ Iframe загружен за ${Math.round(loadTime)}мс`);
+                        
+                        // Пытаемся получить дополнительную информацию через postMessage
+                        try {
+                            iframe.contentWindow.postMessage('{"event":"listening"}', '*');
+                            console.log('🎥 YouTube: Отправлено listening событие в iframe');
+                        } catch (postError) {
+                            console.log(`🎥 YouTube: ⚠️ PostMessage недоступен: ${postError.message}`);
+                        }
+                        
+                        setTimeout(() => {
+                            if (document.body.contains(iframe)) {
+                                document.body.removeChild(iframe);
+                            }
+                        }, 100);
+                        
+                        resolve({ success: true, loadTime, region: 'EU' });
+                    }
+                };
+                
+                iframe.onerror = (e) => {
+                    if (!resolved) {
+                        resolved = true;
+                        loadTime = performance.now() - startTime;
+                        
+                        console.log(`🎥 YouTube: ❌ Iframe ошибка загрузки за ${Math.round(loadTime)}мс:`, e);
+                        
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                        resolve({ success: false, loadTime, region: null });
+                    }
+                };
+                
+                document.body.appendChild(iframe);
+                
+                // Таймаут как в оригинальном скрипте
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        loadTime = performance.now() - startTime;
+                        
+                        console.log(`🎥 YouTube: ⚠️ Iframe таймаут после ${Math.round(loadTime)}мс`);
+                        
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                        resolve({ success: false, loadTime, region: null });
+                    }
+                }, 8000); // 8 секунд как в bash версии
+                
+            } catch (error) {
+                console.log(`🎥 YouTube: ❌ Критическая ошибка iframe: ${error.message}`);
+                resolve({ success: false, loadTime: 0, region: null });
+            }
+        });
     }
 
     // ChatGPT - проверка региона через CDN trace (как в bash скрипте)
