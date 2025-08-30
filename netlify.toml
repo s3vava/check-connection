@@ -3,6 +3,9 @@
 [build]
   publish = "."
 
+[functions]
+directory = "netlify/functions"
+
 [[edge_functions]]
   function = "ip-check"
   path = "/*"
