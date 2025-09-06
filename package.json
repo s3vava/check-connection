@@ -1,5 +1,19 @@
 {
+  "name": "youtube-accessibility-checker",
+  "version": "1.0.0",
+  "description": "Проверка доступности YouTube через измерение скорости загрузки",
+  "main": "yt.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'"
+  },
   "dependencies": {
     "ytdl-core": "^4.11.5"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
